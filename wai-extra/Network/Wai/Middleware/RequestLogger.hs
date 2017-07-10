@@ -17,6 +17,7 @@ module Network.Wai.Middleware.RequestLogger
     , Destination (..)
     , Callback
     , IPAddrSource (..)
+    , LoggedPathType (..)
     ) where
 
 import System.IO (Handle, hFlush, stdout)
@@ -49,7 +50,7 @@ import Network.Wai.Middleware.RequestLogger.Internal
 import Network.Wai.Header (contentLength)
 import Data.Text.Encoding (decodeUtf8')
 
-data OutputFormat = Apache IPAddrSource
+data OutputFormat = Apache IPAddrSource LoggedPathType
                   | Detailed Bool -- ^ use colors?
                   | CustomOutputFormat OutputFormatter
                   | CustomOutputFormatWithDetails OutputFormatterWithDetails
@@ -97,9 +98,9 @@ mkRequestLogger RequestLoggerSettings{..} = do
                 Callback c -> (c, return ())
         callbackAndFlush str = callback str >> flusher
     case outputFormat of
-        Apache ipsrc -> do
+        Apache ipsrc pathtype -> do
             getdate <- getDateGetter flusher
-            apache <- initLogger ipsrc (LogCallback callback flusher) getdate
+            apache <- initLogger ipsrc pathtype (LogCallback callback flusher) getdate
             return $ apacheMiddleware apache
         Detailed useColors -> detailedMiddleware callbackAndFlush useColors
         CustomOutputFormat formatter -> do
@@ -144,7 +145,7 @@ customMiddlewareWithDetails cb getdate formatter app req sendResponse = do
 -- the socket (see 'IPAddrSource' for more information). It logs to 'stdout'.
 {-# NOINLINE logStdout #-}
 logStdout :: Middleware
-logStdout = unsafePerformIO $ mkRequestLogger def { outputFormat = Apache FromSocket }
+logStdout = unsafePerformIO $ mkRequestLogger def { outputFormat = Apache FromSocket LogOnlyPath }
 
 -- | Development request logger middleware.
 --
